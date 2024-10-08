@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { sign, verify } from 'jsonwebtoken'
+import { cookies } from 'next/headers'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_ici'
 
 export async function POST(request: Request) {
-  const authToken = request.cookies.get('authToken')?.value
+  const authToken = cookies().get('authToken')?.value
 
   if (!authToken) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })

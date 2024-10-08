@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useRouter } from 'next/navigation'
+import { Elements } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
+import VirtualTerminal from '../../components/VirtualTerminal'
+import WithdrawalRequestForm from '../../components/WithdrawalRequestForm'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface Transaction {
   id: string
@@ -17,6 +23,7 @@ export default function TableauDeBord() {
   const { user, balance, setBalance } = useAppContext()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
+  const [showVirtualTerminal, setShowVirtualTerminal] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -84,6 +91,30 @@ export default function TableauDeBord() {
   const toggleNewTransactionModal = () => setShowNewTransactionModal(!showNewTransactionModal)
   const toggleWithdrawModal = () => setShowWithdrawModal(!showWithdrawModal)
 
+  const handlePaymentSuccess = (amount: number) => {
+    setBalance(balance + amount)
+    setShowVirtualTerminal(false)
+    // Vous pouvez ajouter ici la logique pour mettre à jour les transactions
+  }
+
+  const handleWithdrawalRequest = async (amount: number, bankAccount: string) => {
+    try {
+      const response = await fetch('/api/withdrawal-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, bankAccount }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        // Mettre à jour l'interface utilisateur ou afficher un message de succès
+      } else {
+        setError('Erreur lors de la demande de retrait')
+      }
+    } catch (error) {
+      setError('Une erreur est survenue lors de la demande de retrait')
+    }
+  }
+
   return (
     <div className="container mx-auto px-4">
       <h1 className="text-3xl font-bold mb-8">Tableau de Bord Marchand</h1>
@@ -110,12 +141,12 @@ export default function TableauDeBord() {
           </ul>
         </div>
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Actions Rapides</h2>
-          <button onClick={toggleNewTransactionModal} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-2 w-full">
-            Nouvelle Transaction
-          </button>
-          <button onClick={toggleWithdrawModal} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full">
-            Demande de Retrait
+          <h2 className="text-xl font-semibold mb-4">Terminal de Paiement Virtuel</h2>
+          <button
+            onClick={() => setShowVirtualTerminal(true)}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+          >
+            Ouvrir le Terminal
           </button>
         </div>
       </div>
@@ -178,6 +209,27 @@ export default function TableauDeBord() {
           </div>
         </div>
       )}
+
+      {showVirtualTerminal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-4">Terminal de Paiement Virtuel</h2>
+            <Elements stripe={stripePromise}>
+              <VirtualTerminal onPaymentSuccess={handlePaymentSuccess} />
+            </Elements>
+            <button
+              onClick={() => setShowVirtualTerminal(false)}
+              className="mt-4 bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Demande de retrait</h2>
+        <WithdrawalRequestForm onRequestSubmit={handleWithdrawalRequest} />
+      </div>
     </div>
   )
 }

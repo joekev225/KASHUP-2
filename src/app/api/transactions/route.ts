@@ -1,18 +1,31 @@
 import { NextResponse } from 'next/server'
 import { transactionSchema } from '../../../lib/validations'
 import { z } from 'zod'
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-09-30.acacia', // Utilisez la version API la plus récente
+})
 
 let transactions: any[] = []
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { amount } = transactionSchema.parse(body)
+    const { amount, paymentIntentId } = body as { amount: number; paymentIntentId: string }
+    
+    // Vérifier le statut du paiement avec Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    
+    if (paymentIntent.status !== 'succeeded') {
+      return NextResponse.json({ error: 'Le paiement n\'a pas été effectué' }, { status: 400 })
+    }
     
     const newTransaction = {
       id: (transactions.length + 1).toString(),
       amount,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      paymentIntentId
     }
     
     transactions.push(newTransaction)
