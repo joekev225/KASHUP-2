@@ -36,10 +36,11 @@ export default function Connexion() {
         setUser(data.user)
         router.push('/tableau-de-bord')
       } else {
-        setError('Identifiants invalides')
+        setError(data.message || 'Erreur de connexion')
       }
     } catch (error) {
-      setError('Une erreur est survenue')
+      setError('Une erreur est survenue lors de la connexion')
+      console.error('Erreur de connexion:', error)
     }
   }
 

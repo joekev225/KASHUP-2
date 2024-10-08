@@ -16,6 +16,7 @@ export default function TableauDeBord() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const { user, balance, setBalance } = useAppContext()
   const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -28,12 +29,15 @@ export default function TableauDeBord() {
   const fetchTransactions = async () => {
     try {
       const response = await fetch('/api/transactions')
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des transactions')
+      }
       const data = await response.json()
       setTransactions(data)
-      // Calculer le solde total
       const totalBalance = data.reduce((sum: number, transaction: Transaction) => sum + transaction.amount, 0)
       setBalance(totalBalance)
     } catch (error) {
+      setError('Impossible de charger les transactions. Veuillez réessayer plus tard.')
       console.error('Erreur lors de la récupération des transactions:', error)
     }
   }
@@ -45,11 +49,15 @@ export default function TableauDeBord() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount }),
       })
+      if (!response.ok) {
+        throw new Error('Erreur lors de la création de la transaction')
+      }
       const newTransaction = await response.json()
       setTransactions([...transactions, newTransaction])
       setBalance(balance + amount)
       setShowNewTransactionModal(false)
     } catch (error) {
+      setError('Impossible de créer la transaction. Veuillez réessayer plus tard.')
       console.error('Erreur lors de la création de la transaction:', error)
     }
   }
@@ -61,11 +69,14 @@ export default function TableauDeBord() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, bankAccount }),
       })
+      if (!response.ok) {
+        throw new Error('Erreur lors de la demande de retrait')
+      }
       const newWithdrawal = await response.json()
-      // Vous pourriez ajouter le retrait à un état local si vous voulez l'afficher immédiatement
       setBalance(balance - amount)
       setShowWithdrawModal(false)
     } catch (error) {
+      setError('Impossible de traiter la demande de retrait. Veuillez réessayer plus tard.')
       console.error('Erreur lors de la demande de retrait:', error)
     }
   }
@@ -76,6 +87,12 @@ export default function TableauDeBord() {
   return (
     <div className="container mx-auto px-4">
       <h1 className="text-3xl font-bold mb-8">Tableau de Bord Marchand</h1>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Erreur!</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Solde du Porte-monnaie</h2>
@@ -109,12 +126,14 @@ export default function TableauDeBord() {
             <h2 className="text-xl font-semibold mb-4">Nouvelle Transaction</h2>
             <form onSubmit={(e) => {
               e.preventDefault()
+              console.log('Formulaire soumis')
               const amount = parseFloat((e.target as any).amount.value)
+              console.log('Montant:', amount)
               handleNewTransaction(amount)
             }} className="space-y-4">
               <div>
                 <label htmlFor="amount" className="block mb-1">Montant</label>
-                <input type="number" id="amount" className="w-full border rounded px-2 py-1" required />
+                <input type="number" id="amount" name="amount" className="w-full border rounded px-2 py-1" required />
               </div>
               <div className="flex justify-end space-x-2">
                 <button type="button" onClick={toggleNewTransactionModal} className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded">
@@ -141,11 +160,11 @@ export default function TableauDeBord() {
             }} className="space-y-4">
               <div>
                 <label htmlFor="withdrawAmount" className="block mb-1">Montant à retirer</label>
-                <input type="number" id="withdrawAmount" className="w-full border rounded px-2 py-1" required />
+                <input type="number" id="withdrawAmount" name="withdrawAmount" className="w-full border rounded px-2 py-1" required />
               </div>
               <div>
                 <label htmlFor="bankAccount" className="block mb-1">Compte bancaire</label>
-                <input type="text" id="bankAccount" className="w-full border rounded px-2 py-1" required />
+                <input type="text" id="bankAccount" name="bankAccount" className="w-full border rounded px-2 py-1" required />
               </div>
               <div className="flex justify-end space-x-2">
                 <button type="button" onClick={toggleWithdrawModal} className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded">
